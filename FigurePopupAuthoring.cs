@@ -35,15 +35,19 @@ namespace Arsenal
 
     public struct FigurePopupState : IComponentData
     {
-        public float3 Origin;
-
+        public float4 Color;
+        public float3 Position;
         public float Time;
+
+        public float3 Movement;
     }
 
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class FigurePopupAuthoring : MonoBehaviour
     {
         public Color Color;
+
+        public float3 Movement;
 
         class FigurePopupBaker : Baker<FigurePopupAuthoring>
         {
@@ -64,7 +68,10 @@ namespace Arsenal
                 var colors = AddBuffer<DigitColor>(entity);
                 colors.Add(new() { Value = UnsafeUtility.As<Color, float4>(ref authoring.Color) });
                 AddComponent<Figure>(entity);
-                AddComponent<FigurePopupState>(entity);
+                AddComponent(entity, new FigurePopupState()
+                {
+                    Movement = authoring.Movement
+                });
             }
         }
     }
@@ -72,8 +79,6 @@ namespace Arsenal
     [UpdateInGroup(typeof(TransformSystemGroup), OrderFirst = true)]
     public partial struct FigurePopup : ISystem
     {
-        private const float k_Movement = 32f;
-
         private const float k_Duration = 0.75f;
 
         [BurstCompile]
@@ -83,6 +88,14 @@ namespace Arsenal
             foreach (var (popup, colors, transform, entity) in SystemAPI.Query<RefRW<FigurePopupState>, DynamicBuffer<DigitColor>, RefRW<LocalTransform>>().WithEntityAccess())
             {
                 var time = popup.ValueRO.Time;
+                if (time == 0) // initialize
+                {
+                    popup.ValueRW.Color = colors[0].Value;
+                    popup.ValueRW.Position = transform.ValueRO.Position;
+                    popup.ValueRW.Time = SystemAPI.Time.DeltaTime;
+                    continue;
+                }
+
                 if (time >= k_Duration)
                 {
                     ecb.DestroyEntity(entity);
@@ -91,10 +104,8 @@ namespace Arsenal
 
                 var t = time / k_Duration;
 
-                var destination = popup.ValueRO.Origin;
-                destination.y += k_Movement * t;
-                transform.ValueRW.Position = destination;
-                var color = math.lerp(new float4(1f, 1f, 1f, 1f), float4.zero, t);
+                transform.ValueRW.Position = popup.ValueRO.Position + popup.ValueRO.Movement * t;
+                var color = math.lerp(popup.ValueRO.Color, float4.zero, t);
                 for (int i = 0; i < colors.Length; i++)
                 {
                     colors.ElementAt(i).Value = color;
@@ -127,7 +138,7 @@ namespace Arsenal
                 for (int i = 0; i < indexes.Length; i++)
                 {
                     var offset = -(w * i) - w / 2 + w * indexes.Length / 2;
-                    offsets.Add(new() { Value = new float4(offset, 0.5f, 0, 0) });
+                    offsets.Add(new() { Value = new float4(offset, 0, 0, 0) });
                 }
 
                 for (int i = colors.Length; i < indexes.Length; i++)
