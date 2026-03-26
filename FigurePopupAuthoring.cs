@@ -65,7 +65,7 @@ namespace Arsenal
                 var t = time / k_Duration;
 
                 transform.ValueRW.Position = popup.ValueRO.Position + popup.ValueRO.Movement * t;
-                var color = math.lerp(popup.ValueRO.Color, float4.zero, t);
+                var color = math.lerp(popup.ValueRO.Color, float4.zero, t * t);
                 for (int i = 0; i < colors.Length; i++)
                 {
                     colors.ElementAt(i).Value = color;
