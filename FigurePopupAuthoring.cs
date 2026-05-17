@@ -18,6 +18,7 @@ namespace Arsenal
         public float3 Movement;
     }
 
+#if UNITY_EDITOR
     [RequireComponent(typeof(FigureAuthoring))]
     public class FigurePopupAuthoring : MonoBehaviour
     {
@@ -35,6 +36,7 @@ namespace Arsenal
             }
         }
     }
+#endif
 
     [UpdateInGroup(typeof(TransformSystemGroup), OrderFirst = true)]
     public partial struct FigurePopup : ISystem

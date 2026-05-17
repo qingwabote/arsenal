@@ -26,12 +26,12 @@ namespace Arsenal
         public float4 Value;
     }
 
-    [WriteGroup(typeof(MaterialMeshBaking))]
     public struct Figure : IComponentData, IEnableableComponent
     {
         public int Value;
     }
 
+#if UNITY_EDITOR
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class FigureAuthoring : MonoBehaviour
     {
@@ -59,6 +59,7 @@ namespace Arsenal
             }
         }
     }
+#endif
 
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(PresentationSystemGroup)), UpdateBefore(typeof(BatchGroup))]
