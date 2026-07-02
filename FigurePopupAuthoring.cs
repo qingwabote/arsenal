@@ -1,9 +1,5 @@
-using Graphix;
-using Unity.Burst;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 
@@ -22,6 +18,7 @@ namespace Arsenal
     [RequireComponent(typeof(FigureAuthoring))]
     public class FigurePopupAuthoring : MonoBehaviour
     {
+        [Tooltip("In camera space")]
         public float3 Movement;
 
         class FigurePopupBaker : Baker<FigurePopupAuthoring>
@@ -39,13 +36,15 @@ namespace Arsenal
 #endif
 
     [UpdateInGroup(typeof(TransformSystemGroup), OrderFirst = true)]
-    public partial struct FigurePopup : ISystem
+    [RequireMatchingQueriesForUpdate]
+    public partial struct FigurePopupSystem : ISystem
     {
         private const float k_Duration = 0.75f;
 
-        [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
+            var cameraTransform = Camera.main.transform;
+
             var ecb = new EntityCommandBuffer(state.WorldUpdateAllocator);
             foreach (var (popup, colors, transform, entity) in SystemAPI.Query<RefRW<FigurePopupState>, DynamicBuffer<DigitColor>, RefRW<LocalTransform>>().WithEntityAccess())
             {
@@ -55,6 +54,7 @@ namespace Arsenal
                     popup.ValueRW.Color = colors[0].Value;
                     popup.ValueRW.Position = transform.ValueRO.Position;
                     popup.ValueRW.Time = SystemAPI.Time.DeltaTime;
+                    transform.ValueRW.Rotation = cameraTransform.rotation;
                     continue;
                 }
 
@@ -66,7 +66,10 @@ namespace Arsenal
 
                 var t = time / k_Duration;
 
-                transform.ValueRW.Position = popup.ValueRO.Position + popup.ValueRO.Movement * t;
+                var movement = (float3)cameraTransform.TransformDirection(popup.ValueRO.Movement);
+                transform.ValueRW.Position = popup.ValueRO.Position + movement * t;
+                transform.ValueRW.Rotation = cameraTransform.rotation;
+
                 var color = math.lerp(popup.ValueRO.Color, float4.zero, t * t);
                 for (int i = 0; i < colors.Length; i++)
                 {
