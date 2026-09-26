@@ -44,10 +44,11 @@ namespace Arsenal
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 var meshFilter = authoring.GetComponent<MeshFilter>();
                 var meshRenderer = authoring.GetComponent<MeshRenderer>();
-                AddComponentObject(entity, new MaterialMeshBufferedBaking
+                var mms = AddBuffer<MaterialMeshInfoBuffered>(entity);
+                mms.Add(new MaterialMeshInfoBuffered
                 {
-                    Meshes = new[] { meshFilter.sharedMesh },
-                    Materials = new[] { meshRenderer.sharedMaterial }
+                    Mesh = meshFilter.sharedMesh,
+                    Material = meshRenderer.sharedMaterial
                 });
                 var indexes = AddBuffer<DigitIndex>(entity);
                 indexes.Add(new());
@@ -62,7 +63,7 @@ namespace Arsenal
 #endif
 
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
-    [UpdateInGroup(typeof(PresentationSystemGroup)), UpdateBefore(typeof(BatchGroup))]
+    [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
     public partial struct FigureRenderer : ISystem
     {
         [BurstCompile]
