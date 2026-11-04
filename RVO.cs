@@ -1,12 +1,17 @@
 using System;
-using System.Collections.Generic;
 using Unity.Mathematics;
 
-namespace Arsenal.RVO
+namespace Arsenal
 {
-    public readonly struct Agent
+    public static class RVO
     {
-        static public readonly int NeighborsLimit = 3;
+        public struct Line
+        {
+            public float2 direction;
+            public float2 point;
+        }
+
+        public const int NeighborsLimit = 3;
 
         internal static float det(float2 vector1, float2 vector2)
         {
@@ -15,40 +20,18 @@ namespace Arsenal.RVO
 
         internal readonly static float RVO_EPSILON = 0.00001f;
 
-        public readonly float2 position_;
-        public readonly float2 velocity_;
-        public readonly float2 prefVelocity_;
-        public readonly float radius_;
-        public readonly float maxSpeed_;
-        public readonly int maxNeighbors_;
-        public readonly float neighborDist_;
-        public readonly float timeHorizon_;
-
-        public Agent(float2 position, float2 velocity, float2 prefVelocity, float radius, float maxSpeed, int maxNeighbors, float neighborDist, float timeHorizon)
+        public static void ComputeOrcaLines(float2 position, float radius, float timeHorizon,
+            float timeStep, ReadOnlySpan<float2> neighbors, Span<Line> orcaLines)
         {
-            position_ = position;
-            velocity_ = velocity;
-            prefVelocity_ = prefVelocity;
-            radius_ = radius;
-            maxSpeed_ = maxSpeed;
-            maxNeighbors_ = math.min(maxNeighbors, NeighborsLimit);
-            neighborDist_ = neighborDist;
-            timeHorizon_ = timeHorizon;
-        }
-
-        public void computeORCALines(float timeStep, ReadOnlySpan<Agent> agents, ReadOnlySpan<KeyValuePair<float, int>> neighbors, Span<Line> orcaLines)
-        {
-            float invTimeHorizon = 1.0f / timeHorizon_;
+            float invTimeHorizon = 1.0f / timeHorizon;
 
             /* Create agent ORCA lines. */
             for (int i = 0; i < neighbors.Length; ++i)
             {
-                ref readonly var other = ref agents[neighbors[i].Value];
-
-                float2 relativePosition = other.position_ - position_;
-                float2 relativeVelocity = velocity_ - other.velocity_;
+                float2 relativePosition = neighbors[i] - position;
+                float2 relativeVelocity = float2.zero;
                 float distSq = math.lengthsq(relativePosition);
-                float combinedRadius = radius_ + other.radius_;
+                float combinedRadius = radius + radius;
                 float combinedRadiusSq = math.square(combinedRadius);
 
                 Line line;
@@ -107,7 +90,7 @@ namespace Arsenal.RVO
                     u = (combinedRadius * invTimeStep - wLength) * unitW;
                 }
 
-                line.point = velocity_ + 0.5f * u;
+                line.point = 0.5f * u;
                 orcaLines[i] = line;
             }
         }
@@ -115,13 +98,13 @@ namespace Arsenal.RVO
         /**
          * <summary>Computes the new velocity of this agent.</summary>
          */
-        public float2 computeNewVelocity(ReadOnlySpan<Line> orcaLines)
+        public static float2 ComputeNewVelocity(float2 prefVelocity, float maxSpeed, ReadOnlySpan<Line> orcaLines)
         {
             float2 newVelocity = default;
-            int lineFail = linearProgram2(orcaLines, maxSpeed_, prefVelocity_, false, ref newVelocity);
+            int lineFail = linearProgram2(orcaLines, maxSpeed, prefVelocity, false, ref newVelocity);
             if (lineFail < orcaLines.Length)
             {
-                linearProgram3(orcaLines, 0, lineFail, maxSpeed_, ref newVelocity);
+                linearProgram3(orcaLines, 0, lineFail, maxSpeed, ref newVelocity);
             }
             return newVelocity;
         }
@@ -142,7 +125,7 @@ namespace Arsenal.RVO
          * <param name="result">A reference to the result of the linear program.
          * </param>
          */
-        private bool linearProgram1(ReadOnlySpan<Line> lines, int lineNo, float radius, float2 optVelocity, bool directionOpt, ref float2 result)
+        private static bool linearProgram1(ReadOnlySpan<Line> lines, int lineNo, float radius, float2 optVelocity, bool directionOpt, ref float2 result)
         {
             float dotProduct = math.dot(lines[lineNo].point, lines[lineNo].direction);
             float discriminant = math.square(dotProduct) + math.square(radius) - math.lengthsq(lines[lineNo].point);
@@ -243,7 +226,7 @@ namespace Arsenal.RVO
          * <param name="result">A reference to the result of the linear program.
          * </param>
          */
-        private int linearProgram2(ReadOnlySpan<Line> lines, float radius, float2 optVelocity, bool directionOpt, ref float2 result)
+        private static int linearProgram2(ReadOnlySpan<Line> lines, float radius, float2 optVelocity, bool directionOpt, ref float2 result)
         {
             if (directionOpt)
             {
@@ -294,7 +277,7 @@ namespace Arsenal.RVO
          * <param name="result">A reference to the result of the linear program.
          * </param>
          */
-        private void linearProgram3(ReadOnlySpan<Line> lines, int numObstLines, int beginLine, float radius, ref float2 result)
+        private static void linearProgram3(ReadOnlySpan<Line> lines, int numObstLines, int beginLine, float radius, ref float2 result)
         {
             Span<Line> projLineBuffer = stackalloc Line[NeighborsLimit * NeighborsLimit];
 
