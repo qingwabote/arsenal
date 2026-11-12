@@ -9,7 +9,8 @@
         "Unity.Entities",
         "Unity.Entities.Hybrid",
         "Bastard",
-        "Graphix"
+        "Graphix",
+        "Bag"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
